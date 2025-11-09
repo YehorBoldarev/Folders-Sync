@@ -15,6 +15,21 @@
             LogPath = Path.GetFullPath(logPath);
         }
 
+        /// <summary>
+        /// Parses and validates command-line arguments required for the application.
+        /// </summary>
+        /// <param name="args">
+        /// An array of command-line arguments provided to the application, expected in the following order:
+        /// <list type="number">
+        /// <item><description><c>sourcePath</c> – The path to the source directory.</description></item>
+        /// <item><description><c>replicaPath</c> – The path to the replica directory.</description></item>
+        /// <item><description><c>syncInterval</c> – The synchronization interval (in seconds). Must be a positive integer.</description></item>
+        /// <item><description><c>logPath</c> – The full path to the log file.</description></item>
+        /// </list>
+        /// </param>
+        /// <returns>A configured <see cref="AppConfiguration"/> instance containing validated parameters.</returns>
+        /// <exception cref="ArgumentException">Thrown when the number of arguments is incorrect or the synchronization interval is invalid.</exception>
+        /// <exception cref="DirectoryNotFoundException">Thrown when the specified source directory does not exist.</exception>
         public static AppConfiguration Parse(string[] args)
         {
             if (args.Length != 4)
@@ -32,7 +47,6 @@
 
             if (!Directory.Exists(replicaPath))
             {
-                Console.WriteLine($"Replica folder '{replicaPath}' does not exist. Creating...");
                 Directory.CreateDirectory(replicaPath);
             }
 

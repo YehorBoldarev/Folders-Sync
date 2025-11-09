@@ -11,6 +11,12 @@
             ReplicaDirectoryPath = replicaDirectoryPath;
         }
 
+        /// <summary>
+        /// Compare the content of source and replica directories
+        /// </summary>
+        /// <returns>
+        /// <see cref="ComparisonResult"/> record that contains data about files and directories that need to be added/updated/removed in replica directory
+        /// </returns>
         public ComparisonResult Compare()
         {
             List<string> sourceDirectoryTree = Directory.GetDirectories(SourceDirectoryPath, "*", SearchOption.AllDirectories)
