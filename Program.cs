@@ -1,4 +1,5 @@
 ﻿using FolderSync.Source;
+using Serilog;
 
 namespace FolderSync
 {
@@ -6,11 +7,20 @@ namespace FolderSync
     {
         static void Main(string[] args)
         {
+            Logger.BasicInitialization();
+
             try
             {
                 var config = AppConfiguration.Parse(args);
 
                 DirectoriesComparer dirComparer = new(config.SourcePath, config.ReplicaPath);
+                Logger.Configure(config.LogPath);
+
+                Log.Information("Application started.");
+                Log.Information("Source: {Source}", config.SourcePath);
+                Log.Information("Replica: {Destination}", config.ReplicaPath);
+                Log.Information("Sync Interval: {Interval} seconds", config.SyncInterval);
+                Log.Information("Log file: {Log}", config.LogPath);
 
                 while (true)
                 {
@@ -19,11 +29,11 @@ namespace FolderSync
 
                     if (!Directory.Exists(config.ReplicaPath))
                     {
-                        Console.WriteLine($"Replica folder ({config.ReplicaPath}) was not found. Creating...");
+                        Log.Warning($"Replica folder ({config.ReplicaPath}) was not found. Creating...");
                         Directory.CreateDirectory(config.ReplicaPath);
                     }
 
-                    Console.WriteLine($"[INFO] Synchronization started at {DateTime.Now}");
+                    Log.Information($"Synchronization started at {DateTime.Now}");
 
                     var comparisonResult = dirComparer.Compare();
                     
@@ -31,14 +41,13 @@ namespace FolderSync
                     {
                         try
                         {
-                            Console.WriteLine($"[INFO] Creating {dirPath} directory in replica folder...");
                             Directory.CreateDirectory(Path.Combine(config.ReplicaPath, dirPath));
-                            Console.WriteLine($"[SUCCESS] Created {dirPath} directory in replica folder");
+                            Log.Information($"Created {dirPath} directory in replica folder");
 
                         }
                         catch (Exception ex)
                         {
-                            Console.WriteLine($"[ERROR] Failed to create {dirPath} directory in replica folder: {ex.Message}");
+                            Log.Error($"Failed to create {dirPath} directory in replica folder: {ex.Message}");
                         }
                     }
 
@@ -48,15 +57,14 @@ namespace FolderSync
 
                         try
                         {
-                            Console.WriteLine($"[INFO] Adding {fileInfo.Key} to replica folder...");
                             var creationTime = fileInfo.Value.CreationTime;
                             fileInfo.Value.CopyTo(destinationPath);
                             File.SetCreationTime(destinationPath, creationTime);
-                            Console.WriteLine($"[SUCCESS] Added {fileInfo.Key} to replica folder");
+                            Log.Information($"Added {fileInfo.Key} to replica folder");
                         }
                         catch (Exception ex)
                         {
-                            Console.WriteLine($"[ERROR] Failed to add file {fileInfo.Key} to replica folder: {ex.Message}");
+                            Log.Error($"Failed to add file {fileInfo.Key} to replica folder: {ex.Message}");
                         } 
                     }
 
@@ -66,29 +74,14 @@ namespace FolderSync
 
                         try
                         {
-                            Console.WriteLine($"[INFO] Updating {fileInfo.Key} in replica folder...");
                             var creationTime = fileInfo.Value.CreationTime;
                             fileInfo.Value.CopyTo(destinationPath, true);
                             File.SetCreationTime(destinationPath, creationTime);
-                            Console.WriteLine($"[SUCCESS] Updated {fileInfo.Key} in replica folder");
+                            Log.Information($"Updated {fileInfo.Key} in replica folder");
                         }
                         catch (Exception ex)
                         {
-                            Console.WriteLine($"[ERROR] Failed to update {fileInfo.Key} in replica folder: {ex.Message}");
-                        }
-                    }
-
-                    foreach (KeyValuePair<string, FileInfo> fileInfo in comparisonResult.FilesToRemove)
-                    {
-                        try
-                        {
-                            Console.WriteLine($"[INFO] Deleting {fileInfo.Key} in replica folder...");
-                            fileInfo.Value.Delete();
-                            Console.WriteLine($"[SUCCESS] Deleted {fileInfo.Key} in replica folder");
-                        }
-                        catch(Exception ex)
-                        {
-                            Console.WriteLine($"[ERROR] Failed to remove {fileInfo.Key} in replica folder: {ex.Message}");
+                            Log.Error($"Failed to update {fileInfo.Key} in replica folder: {ex.Message}");
                         }
                     }
 
@@ -96,14 +89,29 @@ namespace FolderSync
                     {
                         try
                         {
-                            Console.WriteLine($"[INFO] Deleting {dirPath} directory in replica folder...");
-                            Directory.Delete(Path.Combine(config.ReplicaPath, dirPath));
-                            Console.WriteLine($"[SUCCESS] Deleted {dirPath} directory in replica folder");
+                            Directory.Delete(Path.Combine(config.ReplicaPath, dirPath), true);
+                            Log.Information($"Deleted {dirPath} directory in replica folder");
 
                         }
                         catch (Exception ex)
                         {
-                            Console.WriteLine($"[ERROR] Failed to delete {dirPath} directory in replica folder: {ex.Message}");
+                            Log.Error($"Failed to delete {dirPath} directory in replica folder: {ex.Message}");
+                        }
+                    }
+
+                    foreach (KeyValuePair<string, FileInfo> fileInfo in comparisonResult.FilesToRemove)
+                    {
+                        if (File.Exists(fileInfo.Value.FullName))
+                        {
+                            try
+                            {
+                                fileInfo.Value.Delete();
+                                Log.Information($"Deleted {fileInfo.Key} in replica folder");
+                            }
+                            catch (Exception ex)
+                            {
+                                Log.Error($"Failed to remove {fileInfo.Key} in replica folder: {ex.Message}");
+                            }
                         }
                     }
 
@@ -112,9 +120,12 @@ namespace FolderSync
             }
             catch (Exception ex)
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"[FATAL] Synchronization failed to start: {ex.Message}");
-                Console.ResetColor();
+                Log.Fatal($"Synchronization failed to start: {ex.Message}");
+            }
+            finally
+            {
+                Log.Information("Application exited.");
+                Logger.Close();
             }
         }
     }

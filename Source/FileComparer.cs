@@ -2,6 +2,9 @@
 
 namespace FolderSync.Source
 {
+    /// <summary>
+    /// Provides a file comparison mechanism for determining whether two <see cref="FileInfo"/> objects represent identical files.
+    /// </summary>
     public class FileComparer: IEqualityComparer<FileInfo>
     {
         public static readonly FileComparer Instance = new FileComparer();
